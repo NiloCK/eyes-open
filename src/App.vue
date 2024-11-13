@@ -71,11 +71,39 @@
                         </div>
                         <!-- SVG display -->
                         <div class="w-2/3">
-                            <div
-                                v-if="item.svg"
-                                class="p-4 bg-white border rounded svg-container"
-                                v-html="item.svg"
-                            ></div>
+                            <div v-if="item.svg" class="space-y-2">
+                                <!-- Toggle switch -->
+                                <div class="flex items-center justify-end mb-2">
+                                    <span class="mr-2 text-sm text-gray-600">
+                                        {{
+                                            item.showRaw
+                                                ? "Raw SVG"
+                                                : "Rendered"
+                                        }}
+                                    </span>
+                                    <button
+                                        @click="item.showRaw = !item.showRaw"
+                                        class="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded-full transition-colors"
+                                    >
+                                        Toggle View
+                                    </button>
+                                </div>
+
+                                <!-- Raw SVG code -->
+                                <pre
+                                    v-if="item.showRaw"
+                                    class="p-4 bg-gray-100 rounded overflow-auto text-sm font-mono text-left"
+                                    style="text-align: left"
+                                    >{{ item.svg }}</pre
+                                >
+
+                                <!-- Rendered SVG -->
+                                <div
+                                    v-else
+                                    class="p-4 bg-white border rounded svg-container"
+                                    v-html="item.svg"
+                                ></div>
+                            </div>
                             <div
                                 v-else
                                 class="p-4 bg-gray-50 border rounded h-full flex items-center justify-center text-gray-500"
@@ -194,18 +222,19 @@ watch(response, (newResponse) => {
         const textMinusSvg = newResponse.replace(svg, "");
 
         if (svg) {
-            // Add new response to history
+            // Add new response to history with showRaw property
             responseHistory.value.push({
                 response: newResponse,
                 svg: svg,
                 text: textMinusSvg,
+                showRaw: false, // Add this line
             });
         } else {
-            // If no SVG, still add the response to show Claude's final comments
             responseHistory.value.push({
                 response: newResponse,
                 svg: null,
                 text: newResponse,
+                showRaw: false, // Add this line
             });
             console.log("No SVG found in response");
         }
@@ -241,7 +270,7 @@ const handleSubmit = async () => {
     try {
         const anthropic = new Anthropic({
             apiKey: apiKey.value,
-            dangerouslyAllowBrowser: true, // Enable browser usage
+            dangerouslyAllowBrowser: true, // Enable browser usage,
         });
 
         // Initialize history if this is the first message
@@ -297,6 +326,15 @@ const handleSubmit = async () => {
     width: 100%;
     height: auto;
     display: block;
+}
+
+pre {
+    max-height: 500px;
+    white-space: pre-wrap;
+}
+
+:deep(svg) {
+    max-height: 500px;
 }
 
 /* Ensure the text container doesn't get too wide */
