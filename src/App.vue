@@ -26,23 +26,6 @@
                 />
             </div>
 
-            <!-- <div>
-                <label class="block mb-2">Image (optional):</label>
-                <input
-                    type="file"
-                    @change="handleImageChange"
-                    accept="image/*"
-                    class="w-full"
-                    ref="fileInput"
-                />
-                <img
-                    v-if="image"
-                    :src="image"
-                    alt="Selected"
-                    class="mt-2 max-h-48 object-contain"
-                />
-            </div> -->
-
             <button
                 type="submit"
                 :disabled="loading"
