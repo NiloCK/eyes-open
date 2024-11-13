@@ -39,20 +39,6 @@
             {{ error }}
         </div>
 
-        <div v-if="response" class="mt-4">
-            <h2 class="font-bold mb-2">Claude's Response:</h2>
-            <div class="p-4 bg-gray-100 rounded whitespace-pre-wrap">
-                {{ response }}
-            </div>
-        </div>
-        <div v-if="extractedSvg" class="mt-4">
-            <h2 class="font-bold mb-2">Generated SVG:</h2>
-            <div
-                class="p-4 bg-white border rounded shadow-sm"
-                v-html="extractedSvg"
-            ></div>
-        </div>
-
         <div class="mt-8">
             <h2 class="text-xl font-bold mb-4">Drawing Progress:</h2>
             <div class="space-y-6">
