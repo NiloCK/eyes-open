@@ -70,6 +70,29 @@
             ></div>
         </div>
 
+        <div class="mt-8">
+            <h2 class="text-xl font-bold mb-4">Drawing Progress:</h2>
+            <div class="space-y-6">
+                <div
+                    v-for="(item, index) in responseHistory"
+                    :key="index"
+                    class="border rounded p-4"
+                >
+                    <div class="font-bold mb-2">Step {{ index + 1 }}</div>
+                    <div
+                        class="p-4 bg-gray-100 rounded whitespace-pre-wrap mb-4"
+                    >
+                        {{ item.response }}
+                    </div>
+                    <div
+                        v-if="item.svg"
+                        class="p-4 bg-white border rounded shadow-sm"
+                        v-html="item.svg"
+                    ></div>
+                </div>
+            </div>
+        </div>
+
         <div v-if="extractedSvg" class="mt-4">
             <button
                 @click="continueWithRenderedImage"
@@ -95,6 +118,7 @@ const error = ref("");
 const extractedSvg = ref("");
 const canvas = ref(null);
 const conversationHistory = ref("");
+const responseHistory = ref([]);
 
 const svgToImage = () => {
     return new Promise((resolve, reject) => {
@@ -172,11 +196,20 @@ watch(response, (newResponse) => {
         const svg = extractSvgFromResponse(newResponse);
         extractedSvg.value = svg;
 
-        if (!svg) {
+        if (svg) {
+            // Add new response to history
+            responseHistory.value.push({
+                response: newResponse,
+                svg: svg,
+            });
+        } else {
+            // If no SVG, still add the response to show Claude's final comments
+            responseHistory.value.push({
+                response: newResponse,
+                svg: null,
+            });
             console.log("No SVG found in response");
         }
-    } else {
-        extractedSvg.value = "";
     }
 });
 
@@ -254,3 +287,11 @@ const handleSubmit = async () => {
     }
 };
 </script>
+
+<style scoped>
+/* Optional: Add some styling for the history items */
+.response-item {
+    border-left: 4px solid #e2e8f0;
+    margin-bottom: 1rem;
+}
+</style>
