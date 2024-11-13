@@ -140,7 +140,7 @@ const loading = ref(false);
 const error = ref("");
 const extractedSvg = ref("");
 const canvas = ref(null);
-const conversationHistory = ref("");
+const conversationHistory = ref([]);
 const responseHistory = ref([]);
 
 const svgToImage = () => {
@@ -273,39 +273,59 @@ const handleSubmit = async () => {
             dangerouslyAllowBrowser: true, // Enable browser usage,
         });
 
-        // Initialize history if this is the first message
-        if (!conversationHistory.value) {
-            conversationHistory.value = `${basePrompt}${message.value}`;
+        // Initialize conversation if this is the first message
+        if (conversationHistory.value.length === 0) {
+            conversationHistory.value.push({
+                role: "user",
+                content: [
+                    {
+                        type: "text",
+                        text: basePrompt + message.value,
+                    },
+                ],
+            });
         }
 
-        const messages = [
-            {
-                role: "user",
-                content: [{ type: "text", text: conversationHistory.value }],
-            },
-        ];
+        // If there's a current image, add it to the latest message
+        const newMessage = {
+            role: "user",
+            content: [],
+        };
 
-        // Add image to messages if one is selected
         if (currentImage.value) {
-            messages[0].content.unshift({
+            newMessage.content.push({
                 type: "image",
                 source: {
                     type: "base64",
                     media_type: "image/jpeg",
-                    data: currentImage.value.split(",")[1], // Remove the data:image/jpeg;base64, prefix
+                    data: currentImage.value.split(",")[1],
                 },
             });
+        }
+
+        // Only add the current message if it has content
+        if (newMessage.content.length > 0) {
+            conversationHistory.value.push(newMessage);
         }
 
         const completion = await anthropic.messages.create({
             model: "claude-3-5-sonnet-latest",
             max_tokens: 8192,
-            messages: messages,
+            messages: conversationHistory.value,
         });
 
         response.value = completion.content[0].text;
 
-        conversationHistory.value += "\n\nClaude: " + response.value;
+        // Add Claude's response to the conversation history
+        conversationHistory.value.push({
+            role: "assistant",
+            content: [
+                {
+                    type: "text",
+                    text: response.value,
+                },
+            ],
+        });
     } catch (err) {
         error.value =
             err.message || "An error occurred while communicating with Claude";
