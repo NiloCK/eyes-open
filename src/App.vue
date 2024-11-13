@@ -1,5 +1,5 @@
 <template>
-    <div class="max-w-2xl mx-auto p-6">
+    <div class="max-w-7xl mx-auto p-6">
         <!-- hidden canvas for conversion / rendering -->
         <canvas ref="canvas" style="display: none"></canvas>
 
@@ -79,16 +79,28 @@
                     class="border rounded p-4"
                 >
                     <div class="font-bold mb-2">Step {{ index + 1 }}</div>
-                    <div
-                        class="p-4 bg-gray-100 rounded whitespace-pre-wrap mb-4"
-                    >
-                        {{ item.response }}
+                    <div class="flex gap-4">
+                        <!-- Text response -->
+                        <div
+                            class="w-1/3 p-4 bg-gray-100 rounded whitespace-pre-wrap overflow-auto max-h-[500px]"
+                        >
+                            {{ item.text }}
+                        </div>
+                        <!-- SVG display -->
+                        <div class="w-2/3">
+                            <div
+                                v-if="item.svg"
+                                class="p-4 bg-white border rounded svg-container"
+                                v-html="item.svg"
+                            ></div>
+                            <div
+                                v-else
+                                class="p-4 bg-gray-50 border rounded h-full flex items-center justify-center text-gray-500"
+                            >
+                                No image in this response
+                            </div>
+                        </div>
                     </div>
-                    <div
-                        v-if="item.svg"
-                        class="p-4 bg-white border rounded shadow-sm"
-                        v-html="item.svg"
-                    ></div>
                 </div>
             </div>
         </div>
@@ -196,17 +208,21 @@ watch(response, (newResponse) => {
         const svg = extractSvgFromResponse(newResponse);
         extractedSvg.value = svg;
 
+        const textMinusSvg = newResponse.replace(svg, "");
+
         if (svg) {
             // Add new response to history
             responseHistory.value.push({
                 response: newResponse,
                 svg: svg,
+                text: textMinusSvg,
             });
         } else {
             // If no SVG, still add the response to show Claude's final comments
             responseHistory.value.push({
                 response: newResponse,
                 svg: null,
+                text: newResponse,
             });
             console.log("No SVG found in response");
         }
@@ -231,7 +247,6 @@ Please return a single SVG in each response, wrapped in an <svg> tag. Outside th
 I'll encourage you to compartmentalize your drawing efforts - maybe it is useful to draw individual elements separately, and later combine. Maybe it is useful to draw a background first, and then overlay other elements.
 
 The scene:
-
 
 `;
 
@@ -289,9 +304,20 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
-/* Optional: Add some styling for the history items */
-.response-item {
-    border-left: 4px solid #e2e8f0;
-    margin-bottom: 1rem;
+.svg-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+:deep(svg) {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Ensure the text container doesn't get too wide */
+.whitespace-pre-wrap {
+    word-break: break-word;
 }
 </style>
