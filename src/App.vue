@@ -1,5 +1,8 @@
 <template>
     <div class="max-w-2xl mx-auto p-6">
+        <!-- hidden canvas for conversion / rendering -->
+        <canvas ref="canvas" style="display: none"></canvas>
+
         <h1 class="text-2xl font-bold mb-6">Claude Eyes-Open SVG Drawing</h1>
 
         <form @submit.prevent="handleSubmit" class="space-y-4">
@@ -66,6 +69,16 @@
                 v-html="extractedSvg"
             ></div>
         </div>
+
+        <div v-if="extractedSvg" class="mt-4">
+            <button
+                @click="continueWithRenderedImage"
+                :disabled="loading"
+                class="bg-green-500 text-white px-4 py-2 rounded disabled:bg-green-300"
+            >
+                {{ loading ? "Processing..." : "Continue with this result" }}
+            </button>
+        </div>
     </div>
 </template>
 
@@ -75,19 +88,80 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const apiKey = ref("");
 const message = ref("");
-const image = ref(null);
+const currentImage = ref(null);
 const response = ref("");
 const loading = ref(false);
 const error = ref("");
-const fileInput = ref(null);
 const extractedSvg = ref("");
+const canvas = ref(null);
+const conversationHistory = ref("");
+
+const svgToImage = () => {
+    return new Promise((resolve, reject) => {
+        const svg = document.querySelector("svg");
+        const serializer = new XMLSerializer();
+        const svgStr = serializer.serializeToString(svg);
+
+        const svgBlob = new Blob([svgStr], {
+            type: "image/svg+xml;charset=utf-8",
+        });
+        const URL = window.URL || window.webkitURL || window;
+        const blobURL = URL.createObjectURL(svgBlob);
+
+        const img = new Image();
+        img.onload = () => {
+            const ctx = canvas.value.getContext("2d");
+
+            // Set canvas size to match SVG
+            canvas.value.width = img.width;
+            canvas.value.height = img.height;
+
+            // Draw white background
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.value.width, canvas.value.height);
+
+            // Draw the image
+            ctx.drawImage(img, 0, 0);
+
+            // Get base64 without the prefix
+            const dataUrl = canvas.value.toDataURL("image/jpeg", 1.0);
+            const base64Data = dataUrl.split(",")[1];
+            URL.revokeObjectURL(blobURL);
+            resolve(base64Data); // Return only the base64 data without the prefix
+        };
+
+        img.onerror = () => {
+            URL.revokeObjectURL(blobURL);
+            reject(new Error("Error loading SVG"));
+        };
+
+        img.src = blobURL;
+    });
+};
+
+const continueWithRenderedImage = async () => {
+    try {
+        loading.value = true;
+        const base64Data = await svgToImage();
+
+        // Construct the full data URL for preview
+        currentImage.value = `data:image/jpeg;base64,${base64Data}`;
+        message.value = "";
+
+        await handleSubmit();
+    } catch (err) {
+        error.value = "Error converting SVG to image: " + err.message;
+    } finally {
+        loading.value = false;
+    }
+};
 
 const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
         const reader = new FileReader();
         reader.onloadend = () => {
-            image.value = reader.result;
+            currentImage.value = reader.result;
         };
         reader.readAsDataURL(file);
     }
@@ -139,26 +213,29 @@ const handleSubmit = async () => {
             dangerouslyAllowBrowser: true, // Enable browser usage
         });
 
-        const combinedMessage = basePrompt + message.value;
+        // Initialize history if this is the first message
+        if (!conversationHistory.value) {
+            conversationHistory.value = `${basePrompt}${message.value}`;
+        }
 
         const messages = [
             {
                 role: "user",
-                content: [{ type: "text", text: combinedMessage }],
+                content: [{ type: "text", text: conversationHistory.value }],
             },
         ];
 
-        // // Add image to messages if one is selected
-        // if (image.value) {
-        //     messages[0].content.unshift({
-        //         type: "image",
-        //         source: {
-        //             type: "base64",
-        //             media_type: "image/jpeg",
-        //             data: image.value.split(",")[1], // Remove the data:image/jpeg;base64, prefix
-        //         },
-        //     });
-        // }
+        // Add image to messages if one is selected
+        if (currentImage.value) {
+            messages[0].content.unshift({
+                type: "image",
+                source: {
+                    type: "base64",
+                    media_type: "image/jpeg",
+                    data: currentImage.value.split(",")[1], // Remove the data:image/jpeg;base64, prefix
+                },
+            });
+        }
 
         const completion = await anthropic.messages.create({
             model: "claude-3-5-sonnet-latest",
@@ -167,6 +244,8 @@ const handleSubmit = async () => {
         });
 
         response.value = completion.content[0].text;
+
+        conversationHistory.value += "\n\nClaude: " + response.value;
     } catch (err) {
         error.value =
             err.message || "An error occurred while communicating with Claude";
