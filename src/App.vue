@@ -23,19 +23,6 @@
                     v-model="system"
                     class="w-full p-2 border rounded h-32"
                     placeholder=""
-                    default="You are capable of creating images via SVG, but blind-drawing has limitations.
-
-                    Let's see how visual feedback can help your drawing skills.
-
-                    At the end of this prompt, I will ask for a specific scene.
-
-                    After this prompt, I will respond *only* with the rendered images of your SVGs, so that you can view your work. This will continue until you return a response with no SVGs. Please do so to indicate that you are finished and satisfied with the result.
-
-                    Please return a single SVG in each response, wrapped in an <svg> tag. Outside the svg tag, you can include descriptions or running commentary on your process.
-
-                    I'll encourage you to compartmentalize your drawing efforts - maybe it is useful to draw individual elements separately, and later combine. Maybe it is useful to draw a background first, and then overlay other elements.
-
-                    The scene:"
                     required
                 />
             </div>
@@ -55,7 +42,7 @@
                 :disabled="loading"
                 class="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-blue-300"
             >
-                {{ loading ? "Sending..." : "Send to Claude" }}
+                {{ loading ? "Sending..." : "Start Drawing" }}
             </button>
         </form>
 
@@ -129,7 +116,7 @@
                 :disabled="loading"
                 class="bg-green-500 text-white px-4 py-2 rounded disabled:bg-green-300"
             >
-                {{ loading ? "Processing..." : "Continue with this result" }}
+                {{ loading ? "Processing..." : "Iterate on this result" }}
             </button>
         </div>
     </div>
