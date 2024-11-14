@@ -114,23 +114,26 @@
             </div>
         </div>
 
-        <div v-if="extractedSvg" class="mt-4 space-x-3">
+        <div class="mt-4 space-x-3">
             <button
                 @click="continueWithRenderedImage"
                 :disabled="loading"
                 class="bg-green-500 text-white px-4 py-2 rounded disabled:bg-green-300 hover:bg-green-600 transition-colors"
+                v-if="extractedSvg"
             >
                 {{ loading ? "Processing..." : "Iterate on this result" }}
             </button>
             <button
                 @click="exportSessionHTML"
                 class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition-colors"
+                v-if="started"
             >
                 Export as HTML 📁
             </button>
             <button
                 @click="exportSessionMD"
                 class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition-colors"
+                v-if="started"
             >
                 Copy MD 📋
             </button>
