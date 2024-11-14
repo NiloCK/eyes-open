@@ -14,6 +14,7 @@
                     class="w-full p-2 border rounded"
                     placeholder="..."
                     required
+                    :disabled="started"
                 />
             </div>
 
@@ -24,6 +25,7 @@
                     class="w-full p-2 border rounded h-32"
                     placeholder=""
                     required
+                    :disabled="started"
                 />
             </div>
 
@@ -34,12 +36,13 @@
                     class="w-full p-2 border rounded h-32"
                     placeholder="Describe the scene you want Claude to draw..."
                     required
+                    :disabled="started"
                 />
             </div>
 
             <button
                 type="submit"
-                :disabled="loading"
+                :disabled="loading || started"
                 class="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-blue-300"
             >
                 {{ loading ? "Sending..." : "Start Drawing" }}
@@ -100,9 +103,10 @@
                             </div>
                             <div
                                 v-else
-                                class="p-4 bg-gray-50 border rounded h-full flex items-center justify-center text-gray-500"
+                                class="p-4 bg-gray-50 border rounded h-full flex items-center justify-center text-gray-500 gap-4"
                             >
-                                No image in this response
+                                <div>No image in this response - all done.</div>
+
                             </div>
                         </div>
                     </div>
@@ -110,13 +114,25 @@
             </div>
         </div>
 
-        <div v-if="extractedSvg" class="mt-4">
+        <div v-if="extractedSvg" class="mt-4 space-x-3">
             <button
                 @click="continueWithRenderedImage"
                 :disabled="loading"
-                class="bg-green-500 text-white px-4 py-2 rounded disabled:bg-green-300"
+                class="bg-green-500 text-white px-4 py-2 rounded disabled:bg-green-300 hover:bg-green-600 transition-colors"
             >
                 {{ loading ? "Processing..." : "Iterate on this result" }}
+            </button>
+            <button
+                @click="exportSessionHTML"
+                class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition-colors"
+            >
+                Export as HTML 📁
+            </button>
+            <button
+                @click="exportSessionMD"
+                class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition-colors"
+            >
+                Copy MD 📋
             </button>
         </div>
     </div>
@@ -131,6 +147,7 @@ const sceneInput = ref("");
 const currentImage = ref(null);
 const response = ref("");
 const loading = ref(false);
+const started = ref(false);
 const error = ref("");
 const extractedSvg = ref("");
 const canvas = ref(null);
@@ -145,7 +162,7 @@ Each of your responses will include a single <svg> delineated image.
 
 Each of your SVGs will be rendered and returned to you as an image by your patron - the user.
 
-Each of your responses should include a description of the inteded effect of the SVG, as well as an evaluation of the prior render against its own described goals.
+Each of your responses should include a description of the intended effect of the SVG, as well as an evaluation of the prior render against its own described goals.
 
 You are free to compartmentalize your drawing efforts - maybe it is useful to draw individual elements separately, and later combine. Maybe it is useful to draw a background first, and then overlay other elements.
 
@@ -153,6 +170,127 @@ Again: you are pragmatic. You aim for incremental progress instead of perfection
 
 When a returned render satisfies your expectations, please respond with a message that does not include an SVG, to indicate that you are finished.`);
 
+
+const escapeHTML = (str) => {
+  return str.replace(/[&<>'"]/g, (tag) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '"': "&quot;",
+  }[tag] || tag));
+}
+
+const exportSessionMD = () => {
+  const mdContent = `### ${sceneInput.value}
+Prompt:
+
+${system.value.split('\n').map(l =>
+  ">  " +escapeHTML(l))
+.join('\n')}
+
+Scene:
+
+>  ${sceneInput.value}
+
+| Commentary | Output |
+| --- | --- |
+${responseHistory.value.map((item) =>
+    `| ${item.text.replace(/\n/g, ' ')} | ${item.svg ? item.svg.replace(/\n/g, ' ') : 'No image'} |`
+  ).join('\n')}`;
+
+  // copy mdContent to clipboard
+  navigator.clipboard.writeText(mdContent);
+
+  alert("Markdown content copied to clipboard!");
+}
+
+const exportSessionHTML = () => {
+
+
+
+    // Create HTML content
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Eyes-Open SVG Drawing Session Export</title>
+    <style>
+        body {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        .response {
+            border: 1px solid #ccc;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .text-content {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            white-space: pre-wrap;
+        }
+        .svg-content {
+            background: white;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+        }
+        pre {
+            white-space: pre-wrap;
+            background: #f8f8f8;
+            padding: 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Claude Eyes-Open SVG Drawing Session</h1>
+
+    <h2>System Prompt:</h2>
+    <pre>${escapeHTML(system.value)}</pre>
+
+    <h2>Scene Description:</h2>
+    <pre>${sceneInput.value}</pre>
+
+    <h2>Drawing Progress:</h2>
+    ${responseHistory.value
+        .map(
+            (item, index) => `
+    <div class="response">
+        <h3>Step ${index + 1}</h3>
+        <div class="text-content">${item.text}</div>
+        ${
+            item.svg
+                ? `<div class="svg-content">${item.svg}</div>`
+                : '<div>No image in this response</div>'
+        }
+    </div>
+    `
+        )
+        .join('')}
+</body>
+</html>
+    `;
+
+    // Create blob and download
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `claude-draw-${sceneInput.value.replaceAll(" ", "_")}.html`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+};
 
 const svgToImage = () => {
     return new Promise((resolve, reject) => {
@@ -209,7 +347,6 @@ const continueWithRenderedImage = async () => {
 
         // Construct the full data URL for preview
         currentImage.value = `data:image/jpeg;base64,${base64Data}`;
-        sceneInput.value = "";
 
         await handleSubmit();
     } catch (err) {
@@ -269,6 +406,7 @@ The scene:
 
 const handleSubmit = async () => {
     loading.value = true;
+    started.value = true;
     error.value = "";
     response.value = "";
 
