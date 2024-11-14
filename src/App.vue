@@ -150,13 +150,13 @@ const canvas = ref(null);
 const conversationHistory = ref([]);
 const responseHistory = ref([]);
 const system = ref(
-    `You are a talented and pragmatic artist, capable of creating images via SVG.
+  `You are a talented and pragmatic artist, capable of creating images via SVG.
 
 You will receive a single user prompt for a scene, after which point you will iteratively create the scene.
 
 Each of your responses will include a single <svg> delineated image.
 
-Each of your SVGs will be rendered and returned to you as an image by the user.
+Each of your SVGs will be rendered and returned to you as an image by your patron - the user.
 
 Each of your responses should include a description of the inteded effect of the SVG, as well as an evaluation of the prior render against its own described goals.
 
@@ -164,13 +164,17 @@ You are free to compartmentalize your drawing efforts - maybe it is useful to dr
 
 Again: you are pragmatic. You aim for incremental progress instead of perfection.
 
-When a returned render satisfies your expectations, please respond with a message that does not include an SVG, to indicate that you are finished.
-`,
-);
+When a returned render satisfies your expectations, please respond with a message that does not include an SVG, to indicate that you are finished.`);
+
 
 const svgToImage = () => {
     return new Promise((resolve, reject) => {
-        const svg = document.querySelector("svg");
+        const svgs = document.querySelectorAll("svg");
+        if (svgs.length === 0) {
+            reject("No SVG found in the response");
+        }
+        const svg = svgs[svgs.length - 1];
+
         const serializer = new XMLSerializer();
         const svgStr = serializer.serializeToString(svg);
 
