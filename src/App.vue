@@ -226,17 +226,6 @@ const continueWithRenderedImage = async () => {
     }
 };
 
-const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            currentImage.value = reader.result;
-        };
-        reader.readAsDataURL(file);
-    }
-};
-
 watch(response, (newResponse) => {
     if (newResponse) {
         const svg = extractSvgFromResponse(newResponse);
