@@ -7,11 +7,35 @@
 
         <form @submit.prevent="handleSubmit" class="space-y-4">
             <div>
-                <label class="block mb-2">API Key:</label>
+                <label class="block mb-2">Anthropic API Key:</label>
                 <input
                     type="password"
                     v-model="apiKey"
                     class="w-full p-2 border rounded"
+                    placeholder="..."
+                    required
+                />
+            </div>
+
+            <div>
+                <label class="block mb-2">System Prompt:</label>
+                <textarea
+                    v-model="system"
+                    class="w-full p-2 border rounded h-32"
+                    placeholder=""
+                    default="You are capable of creating images via SVG, but blind-drawing has limitations.
+
+                    Let's see how visual feedback can help your drawing skills.
+
+                    At the end of this prompt, I will ask for a specific scene.
+
+                    After this prompt, I will respond *only* with the rendered images of your SVGs, so that you can view your work. This will continue until you return a response with no SVGs. Please do so to indicate that you are finished and satisfied with the result.
+
+                    Please return a single SVG in each response, wrapped in an <svg> tag. Outside the svg tag, you can include descriptions or running commentary on your process.
+
+                    I'll encourage you to compartmentalize your drawing efforts - maybe it is useful to draw individual elements separately, and later combine. Maybe it is useful to draw a background first, and then overlay other elements.
+
+                    The scene:"
                     required
                 />
             </div>
@@ -19,7 +43,7 @@
             <div>
                 <label class="block mb-2">Scene Description:</label>
                 <textarea
-                    v-model="message"
+                    v-model="sceneInput"
                     class="w-full p-2 border rounded h-32"
                     placeholder="Describe the scene you want Claude to draw..."
                     required
@@ -60,18 +84,15 @@
                             <div v-if="item.svg" class="space-y-2">
                                 <!-- Toggle switch -->
                                 <div class="flex items-center justify-end mb-2">
-                                    <span class="mr-2 text-sm text-gray-600">
-                                        {{
-                                            item.showRaw
-                                                ? "Raw SVG"
-                                                : "Rendered"
-                                        }}
-                                    </span>
                                     <button
                                         @click="item.showRaw = !item.showRaw"
                                         class="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded-full transition-colors"
                                     >
-                                        Toggle View
+                                        {{
+                                            item.showRaw
+                                                ? "Show 🖼️"
+                                                : "Show </>"
+                                        }}
                                     </button>
                                 </div>
 
@@ -119,7 +140,7 @@ import { ref, watch } from "vue";
 import Anthropic from "@anthropic-ai/sdk";
 
 const apiKey = ref("");
-const message = ref("");
+const sceneInput = ref("");
 const currentImage = ref(null);
 const response = ref("");
 const loading = ref(false);
@@ -128,6 +149,22 @@ const extractedSvg = ref("");
 const canvas = ref(null);
 const conversationHistory = ref([]);
 const responseHistory = ref([]);
+const system = ref(
+    `You are a talented and exacting artist, capable of creating images via SVG.
+
+You will receive a single user prompt for a scene, after which point you will iteratively create the scene.
+
+Each of your responses will include a single <svg> delineated image, which will be rendered and displayed for you to view.
+
+Each of your responses should include a description of the inteded effect of the SVG, as well as an evaluation of the prior render against its own described goals.
+
+Each of your SVGs will be rendered and returned to you by the user.
+
+You are free to compartmentalize your drawing efforts - maybe it is useful to draw individual elements separately, and later combine. Maybe it is useful to draw a background first, and then overlay other elements.
+
+When a returned render satisfies your expectations, please respond with a message that does not include an SVG, to indicate that you are finished.
+    `,
+);
 
 const svgToImage = () => {
     return new Promise((resolve, reject) => {
@@ -179,7 +216,7 @@ const continueWithRenderedImage = async () => {
 
         // Construct the full data URL for preview
         currentImage.value = `data:image/jpeg;base64,${base64Data}`;
-        message.value = "";
+        sceneInput.value = "";
 
         await handleSubmit();
     } catch (err) {
@@ -205,7 +242,7 @@ watch(response, (newResponse) => {
         const svg = extractSvgFromResponse(newResponse);
         extractedSvg.value = svg;
 
-        const textMinusSvg = newResponse.replace(svg, "");
+        const textMinusSvg = newResponse.replace(svg, "[clipped SVG]");
 
         if (svg) {
             // Add new response to history with showRaw property
@@ -266,7 +303,7 @@ const handleSubmit = async () => {
                 content: [
                     {
                         type: "text",
-                        text: basePrompt + message.value,
+                        text: sceneInput.value,
                     },
                 ],
             });
@@ -298,6 +335,7 @@ const handleSubmit = async () => {
             model: "claude-3-5-sonnet-latest",
             max_tokens: 8192,
             messages: conversationHistory.value,
+            system: system.value,
         });
 
         response.value = completion.content[0].text;
