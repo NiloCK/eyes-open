@@ -182,21 +182,23 @@ const escapeHTML = (str) => {
 }
 
 const exportSessionMD = () => {
+  const inset = (str) => `> ${str.split('\n').join('\n> ')}`;
+
   const mdContent = `### ${sceneInput.value}
-Prompt:
+#### Prompt:
 
 ${system.value.split('\n').map(l =>
   ">  " +escapeHTML(l))
 .join('\n')}
 
-Scene:
+#### Scene:
 
 >  ${sceneInput.value}
 
-| Commentary | Output |
-| --- | --- |
+#### Responses:
+
 ${responseHistory.value.map((item) =>
-    `| ${item.text.replace(/\n/g, ' ')} | ${item.svg ? item.svg.replace(/\n/g, ' ') : 'No image'} |`
+  `${inset(item.text)} \n\n ${item.svg ? item.svg.replace(/\n/g, ' ') : '[No image]'} \n`
   ).join('\n')}`;
 
   // copy mdContent to clipboard
