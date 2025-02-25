@@ -18,6 +18,27 @@
                 />
             </div>
 
+            <div v-if="apiKey">
+                <label class="block mb-2">Select Model:</label>
+                <div class="relative">
+                    <select
+                        v-model="selectedModel"
+                        class="w-full p-2 border rounded appearance-none bg-white pr-8"
+                        :disabled="started || loadingModels"
+                    >
+                        <option v-if="loadingModels" value="">Loading models...</option>
+                        <option v-else-if="models.length === 0" value="">No models available</option>
+                        <option
+                            v-for="model in models"
+                            :key="model.id"
+                            :value="model.id"
+                        >
+                            {{ model.display_name }}
+                        </option>
+                    </select>
+                </div>
+            </div>
+
             <div>
                 <label class="block mb-2">System Prompt:</label>
                 <textarea
@@ -42,7 +63,7 @@
 
             <button
                 type="submit"
-                :disabled="loading || started"
+                :disabled="loading || started || loadingModels || !selectedModel"
                 class="bg-blue-500 text-white px-4 py-2 rounded disabled:bg-blue-300"
             >
                 {{ loading ? "Sending..." : "Start Drawing" }}
@@ -141,11 +162,16 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch } from "vue";
 import Anthropic from "@anthropic-ai/sdk";
 
 const apiKey = ref("");
+
+const models = ref([]);
+const selectedModel = ref("");
+const loadingModels = ref(false);
+
 const sceneInput = ref("");
 const currentImage = ref(null);
 const response = ref("");
@@ -173,6 +199,58 @@ Again: you are pragmatic. You aim for incremental progress instead of perfection
 
 When a returned render satisfies your expectations, please respond with a message that does not include an SVG, to indicate that you are finished.`);
 
+watch(apiKey, async (newApiKey) => {
+    console.log(`apiKey change`);
+    if (newApiKey && !started.value) {
+        await fetchModels();
+    }
+});
+
+const fetchModels = async () => {
+    if (!apiKey.value) return;
+
+    loadingModels.value = true;
+    models.value = [];
+    selectedModel.value = "";
+    error.value = "";
+
+    try {
+        const anthropic = new Anthropic({
+            apiKey: apiKey.value,
+            dangerouslyAllowBrowser: true,
+        });
+
+        const response = await anthropic.models.list();
+
+        if (response && response.data) {
+            // Filter only for Claude models that support vision
+            models.value = response.data.filter(model =>
+                model.id.includes("claude") &&
+                !model.id.includes("haiku") &&
+                !model.id.includes("instant")
+            );
+
+            // Set default model (preferring Claude 3.5 Sonnet if available)
+            const sonnet = models.value.find(m => m.id.includes("claude-3-5-sonnet"));
+            if (sonnet) {
+                selectedModel.value = sonnet.id;
+            } else if (models.value.length > 0) {
+                selectedModel.value = models.value[0].id;
+            }
+        }
+    } catch (err) {
+        console.error("Error fetching models:", err);
+        models.value = [
+          {id:"claude-3-7-sonnet-20250219", display_name:"3.7 sonnet"},
+          {id:"claude-3-5-haiku-20241022", display_name:"3.5 haiku"},
+          {id:"claude-3-5-sonnet-20241022", display_name:"3.6 sonnet"},
+          {id:"claude-3-5-sonnet-20240620", display_name:"3.5 sonnet"},
+          {id:"claude-3-opus-20240229", display_name:"3 opus"},
+        ]
+    } finally {
+        loadingModels.value = false;
+    }
+};
 
 const escapeHTML = (str) => {
   return str.replace(/[&<>'"]/g, (tag) => ({
@@ -457,7 +535,7 @@ const handleSubmit = async () => {
         }
 
         const completion = await anthropic.messages.create({
-            model: "claude-3-5-sonnet-latest",
+            model: selectedModel.value,
             max_tokens: 8192,
             messages: conversationHistory.value,
             system: system.value,
