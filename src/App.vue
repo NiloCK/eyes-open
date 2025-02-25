@@ -206,6 +206,10 @@ watch(apiKey, async (newApiKey) => {
     }
 });
 
+watch(selectedModel, () => {
+  console.log(`Selected ${selectedModel.value}`);
+})
+
 const fetchModels = async () => {
     if (!apiKey.value) return;
 
@@ -230,8 +234,8 @@ const fetchModels = async () => {
                 !model.id.includes("instant")
             );
 
-            // Set default model (preferring Claude 3.5 Sonnet if available)
-            const sonnet = models.value.find(m => m.id.includes("claude-3-5-sonnet"));
+            // Set default model (preferring Claude 3.7 Sonnet if available)
+            const sonnet = models.value.find(m => m.id.includes("claude-3-7-sonnet"));
             if (sonnet) {
                 selectedModel.value = sonnet.id;
             } else if (models.value.length > 0) {
